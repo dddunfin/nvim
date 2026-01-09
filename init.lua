@@ -30,6 +30,9 @@ opt.cursorline = true
 -- 滚动时光标下方保留的行数
 opt.scrolloff = 8
 
+-- 开启剪贴板共享
+opt.clipboard = "unnamedplus"
+
 -- 将空格键设为 Leader 键
 vim.g.mapleader = " "
 
@@ -171,7 +174,7 @@ require("lazy").setup({
                     -- 在这里添加忽略列表
                     file_ignore_patterns = {
                         "node_modules", -- 过滤整个文件夹
-                        "%.git\\",      -- 过滤 Windows 路径下的 .git
+                        "%.git/",      -- 过滤 Windows 路径下的 .git
                         "dist",
                         "build",
                     },
@@ -181,8 +184,6 @@ require("lazy").setup({
                     use_less = true,
                     set_env = { ["COLORTERM"] = "truecolor" },
                     -- 很多时候乱码来自 devicons，如果不装那个插件，有些 picker 会显示方块
-                    -- 我们通过 display_stat 确保它只显示路径和文字
-                    file_ignore_patterns = { "node_modules", "%.git\\" },
                     path_display = { "truncate" },
                 },
                 pickers = {
@@ -235,7 +236,12 @@ require("lazy").setup({
                 on_attach = my_on_attach,
                 -- 新增 view 配置来调整宽度
                 view = {
-                    width = 65, -- 在这里输入你希望的宽度数值（数字越大越宽）
+                    -- 修改这里：根据屏幕总宽度动态计算
+                    width = function()
+                        local screen_w = vim.opt.columns:get()
+                        -- 设置最小 30 列，最大占总宽度的 25%
+                        return math.max(30, math.floor(screen_w * 0.25))
+                    end,
                     side = "left", -- 默认在左侧
                 },
                 filters = {
