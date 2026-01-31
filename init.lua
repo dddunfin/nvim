@@ -143,7 +143,8 @@ require("lazy").setup({
                     "lua", "vim", "vimdoc", "query", 
                     "javascript", "typescript", 
                     "html", "css",
-                    "vue", "sass", "scss"
+                    "vue", "sass", "scss",
+                    "c", "cpp",
                 },
                 -- 启用同步安装
                 sync_install = false,
@@ -314,7 +315,7 @@ require("lazy").setup({
 
             -- 2. 修正后的服务器列表
             -- 注意：如果 volar 报错，尝试改成 vue-language-server 或暂时移除测试
-            local servers = { "ts_ls", "html", "cssls", "emmet_ls", "lua_ls" }
+            local servers = { "ts_ls", "html", "cssls", "emmet_ls", "lua_ls", "clangd" }
 
             require("mason-lspconfig").setup({
                 ensure_installed = servers,
@@ -406,6 +407,85 @@ require("lazy").setup({
                     end
                 }
             })
+        end
+    },
+
+    -- [[ C/C++ 调试配置 ]]
+    {
+        "mfussenegger/nvim-dap",
+        dependencies = {
+            "rcarriga/nvim-dap-ui",      -- 调试 UI
+            "nvim-neotest/nvim-nio",     -- UI 依赖
+            "jay-babu/mason-nvim-dap.nvim", -- 自动安装调试器
+        },
+        config = function()
+            local dap = require("dap")
+            local dapui = require("dapui")
+
+            -- 1. 显式配置适配器 (解决 command = "" 报错的关键)
+            -- 这里的路径是 Mason 在 WSL/Linux 下安装 codelldb 的标准位置
+            local mason_path = vim.fn.stdpath("data") .. "/mason/bin/codelldb"
+            dap.adapters.codelldb = {
+                type = 'server',
+                port = "${port}",
+                executable = {
+                    command = mason_path,
+                    args = {"--port", "${port}"},
+                }
+            }
+
+            -- 2. 配置 C++ 调试参数
+            dap.configurations.cpp = {
+                {
+                    name = "Launch file",
+                    type = "codelldb", -- 必须对应上面的 adapters 名字
+                    request = "launch",
+                    program = function()
+                        -- 自动定位到当前目录的 build 文件夹下，方便你输入文件名
+                        return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/build/', 'file')
+                    end,
+                    cwd = '${workspaceFolder}',
+                    stopOnEntry = false,
+                },
+            }
+
+            -- 3. Mason-DAP 设置 (保持安装功能)
+            require("mason-nvim-dap").setup({
+                ensure_installed = { "codelldb" },
+                automatic_installation = true,
+            })
+
+            -- 4. 调试 UI 设置 (保持你的纯文字风格)
+            dapui.setup({
+                icons = { expanded = "v", collapsed = ">", current_frame = "*" },
+                mappings = { expand = { "<CR>", "<2-LeftMouse>" }, open = "o", remove = "d", edit = "e", repl = "r", toggle = "t" },
+                layouts = {
+                    {
+                        elements = {
+                            { id = "scopes", size = 0.25 },
+                            { id = "breakpoints", size = 0.25 },
+                            { id = "stacks", size = 0.25 },
+                            { id = "watches", size = 0.25 },
+                        },
+                        size = 40,
+                        position = "left",
+                    },
+                    { elements = { { id = "repl", size = 0.5 }, { id = "console", size = 0.5 } }, size = 10, position = "bottom" },
+                },
+            })
+
+            -- 5. 快捷键
+            vim.keymap.set('n', '<F5>', function() dap.continue() end, { desc = "开始/继续调试,跳转到下一个 B 标记" })
+            vim.keymap.set('n', '<F6>', function() dap.step_over() end, { desc = "步过,以此执行之后的代码，遇到函数不会进入，需要按F7" })
+            vim.keymap.set('n', '<F7>', function() dap.step_into() end, { desc = "步进,视野切换到函数定义内部" })
+            vim.keymap.set('n', '<F8>', function() dap.step_out() end, { desc = "步出,视野回到调用函数的那一行" })
+            vim.keymap.set('n', '<leader>b', function() dap.toggle_breakpoint() end, { desc = "打断点" })
+            vim.keymap.set('n', '<leader>du', function() dapui.toggle() end, { desc = "开关调试界面" })
+
+            -- 6. 自动打开/关闭 UI
+            dap.listeners.after.event_initialized["dapui_config"] = function() dapui.open() end
+            dap.listeners.before.event_terminated["dapui_config"] = function() dapui.close() end
+            dap.listeners.before.event_exited["dapui_config"] = function() dapui.close() end
         end
     },
 })
