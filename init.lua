@@ -449,6 +449,9 @@ require("lazy").setup({
                 },
             }
 
+            -- 同步c和cpp配置信息
+            dap.configurations.c = dap.configurations.cpp
+
             -- 3. Mason-DAP 设置 (保持安装功能)
             require("mason-nvim-dap").setup({
                 ensure_installed = { "codelldb" },
