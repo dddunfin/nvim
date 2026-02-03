@@ -159,6 +159,11 @@ require("lazy").setup({
                 -- 自动缩进功能
                 indent = { enable = true },
             })
+
+            vim.opt.foldmethod = "expr"
+            vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
+            vim.opt.foldlevel = 99
+            vim.opt.foldenable = true
         end
     },
 
